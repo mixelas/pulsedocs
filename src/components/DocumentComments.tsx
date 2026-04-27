@@ -29,6 +29,12 @@ export function DocumentComments({
 
   const { comments, loading } = useDocumentCommentsSubscription(documentId);
 
+  const getAuthorLabel = (authorId: string) => {
+    if (!authorId) return 'Unknown user';
+    if (authorId === currentUserId) return 'You';
+    return `User ${authorId.slice(0, 8)}`;
+  };
+
   async function handlePostComment(e: React.FormEvent) {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -110,7 +116,7 @@ export function DocumentComments({
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold text-foreground text-sm">
-                    {comment.author_id === currentUserId ? 'You' : comment.author_id}
+                    {getAuthorLabel(comment.author_id)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(comment.created_at).toLocaleString()}

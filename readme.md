@@ -1,4 +1,4 @@
-git config --list# PulseDocs
+# PulseDocs
 
 A modern SaaS platform combining Slack-style channels with Notion-style documentation. PulseDocs helps teams unify communication and knowledge management in a single workspace, eliminating context switching between tools.
 

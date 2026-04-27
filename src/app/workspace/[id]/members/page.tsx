@@ -9,7 +9,7 @@ import {
   getWorkspaceInvitations,
   revokeInvitation,
 } from '@/app/actions/members';
-import { getCurrentUserRole } from '@/lib/auth-helpers';
+import { createClient } from '@/lib/supabase/client';
 import { InviteMembers } from '@/components/InviteMembers';
 import type { WorkspaceMember } from '@/types/database';
 
@@ -17,8 +17,12 @@ interface Props {
   params: { id: string };
 }
 
+type MemberWithUser = WorkspaceMember & {
+  user?: { id: string; email?: string | null } | null;
+};
+
 export default function MembersPage({ params: { id } }: Props) {
-  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [members, setMembers] = useState<MemberWithUser[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,12 +34,18 @@ export default function MembersPage({ params: { id } }: Props) {
         const membersData = await getWorkspaceMembers(id);
         setMembers(membersData);
 
-        const role = await getCurrentUserRole(id);
-        setUserRole(role);
+        // Get current user from auth client
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const currentMember = membersData.find(m => m.user_id === user.id);
+          setUserRole(currentMember?.role || null);
 
-        if (role === 'owner' || role === 'admin') {
-          const invitationsData = await getWorkspaceInvitations(id);
-          setInvitations(invitationsData);
+          if (currentMember?.role === 'owner' || currentMember?.role === 'admin') {
+            const invitationsData = await getWorkspaceInvitations(id);
+            setInvitations(invitationsData);
+          }
         }
       } finally {
         setLoading(false);
@@ -142,7 +152,7 @@ export default function MembersPage({ params: { id } }: Props) {
             <div key={member.id} className="bg-card rounded-lg p-4 border border-border flex items-center justify-between">
               <div>
                 <p className="font-medium text-foreground">
-                  {member.user_id}
+                  {member.user?.email || member.user_id}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Joined {new Date(member.joined_at).toLocaleDateString()}

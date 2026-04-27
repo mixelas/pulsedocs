@@ -17,6 +17,8 @@ export type ActivityType =
   | 'document_created'
   | 'document_updated'
   | 'document_deleted'
+  | 'document_restored'
+  | 'document_commented'
   | 'comment_posted'
   | 'comment_deleted';
 
@@ -30,13 +32,28 @@ export async function logActivity(
   if (!user) return;
 
   const supabase = await createClient();
-  await supabase.from('activity_logs').insert({
+  const { error } = await supabase.from('activity_logs').insert({
     workspace_id: workspaceId,
     actor_id: user.id,
     activity_type: activityType,
     description,
     metadata: metadata || {},
   });
+
+  // Backward compatibility with original schema (entity_type/action).
+  if (error) {
+    await supabase.from('activity_logs').insert({
+      workspace_id: workspaceId,
+      actor_id: user.id,
+      entity_type: 'workspace',
+      entity_id: null,
+      action: activityType,
+      metadata: {
+        description,
+        ...(metadata || {}),
+      },
+    });
+  }
 }
 
 export async function getActivityLogs(
@@ -56,7 +73,16 @@ export async function getActivityLogs(
     .range(offset, offset + limit - 1);
 
   if (error) return [];
-  return data as ActivityLog[] || [];
+
+  return ((data || []) as any[]).map((row) => ({
+    id: row.id,
+    workspace_id: row.workspace_id,
+    actor_id: row.actor_id,
+    activity_type: row.activity_type || row.action || 'activity',
+    description: row.description || row.metadata?.description || row.action || 'Activity',
+    metadata: row.metadata || {},
+    created_at: row.created_at,
+  })) as ActivityLog[];
 }
 
 export async function getActivityLogsFiltered(
@@ -75,7 +101,43 @@ export async function getActivityLogsFiltered(
     .eq('workspace_id', workspaceId);
 
   if (activityTypes && activityTypes.length > 0) {
-    query = query.in('activity_type', activityTypes);
+    const modernQuery = query.in('activity_type', activityTypes);
+    const { data: modernData, error: modernError } = await modernQuery
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (!modernError) {
+      return ((modernData || []) as any[]).map((row) => ({
+        id: row.id,
+        workspace_id: row.workspace_id,
+        actor_id: row.actor_id,
+        activity_type: row.activity_type || row.action || 'activity',
+        description: row.description || row.metadata?.description || row.action || 'Activity',
+        metadata: row.metadata || {},
+        created_at: row.created_at,
+      })) as ActivityLog[];
+    }
+
+    // Fallback for legacy action column.
+    const { data: legacyData, error: legacyError } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .in('action', activityTypes)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (legacyError) return [];
+
+    return ((legacyData || []) as any[]).map((row) => ({
+      id: row.id,
+      workspace_id: row.workspace_id,
+      actor_id: row.actor_id,
+      activity_type: row.activity_type || row.action || 'activity',
+      description: row.description || row.metadata?.description || row.action || 'Activity',
+      metadata: row.metadata || {},
+      created_at: row.created_at,
+    })) as ActivityLog[];
   }
 
   const { data, error } = await query
@@ -83,5 +145,13 @@ export async function getActivityLogsFiltered(
     .range(offset, offset + limit - 1);
 
   if (error) return [];
-  return data as ActivityLog[] || [];
+  return ((data || []) as any[]).map((row) => ({
+    id: row.id,
+    workspace_id: row.workspace_id,
+    actor_id: row.actor_id,
+    activity_type: row.activity_type || row.action || 'activity',
+    description: row.description || row.metadata?.description || row.action || 'Activity',
+    metadata: row.metadata || {},
+    created_at: row.created_at,
+  })) as ActivityLog[];
 }

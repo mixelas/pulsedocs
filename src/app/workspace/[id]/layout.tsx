@@ -142,6 +142,15 @@ export default function WorkspaceLayout({ params: { id }, children }: WorkspaceL
 
           <div className="mt-6">
             <Link
+              href={`/workspace/${id}/messages`}
+              className="block px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted transition"
+            >
+              Messages
+            </Link>
+          </div>
+
+          <div className="mt-6">
+            <Link
               href={`/workspace/${id}/members`}
               className="block px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted transition"
             >

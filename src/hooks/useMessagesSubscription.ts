@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Message } from '@/types/database';
 
@@ -13,7 +13,7 @@ export function useMessagesSubscription(channelId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchMessages = useCallback(async () => {
     const { data, error: fetchError } = await supabase
@@ -50,7 +50,9 @@ export function useMessagesSubscription(channelId: string) {
           if (payload.eventType === 'INSERT') {
             const newMessage = payload.new as Message;
             if (newMessage.deleted_at === null) {
-              setMessages((prev) => [...prev, newMessage]);
+              setMessages((prev) =>
+                prev.some((msg) => msg.id === newMessage.id) ? prev : [...prev, newMessage]
+              );
             }
           } else if (payload.eventType === 'UPDATE') {
             const updatedMessage = payload.new as Message;
@@ -65,7 +67,12 @@ export function useMessagesSubscription(channelId: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Re-sync when channel is ready in case inserts happened during reconnect.
+          fetchMessages();
+        }
+      });
 
     return () => {
       supabase.removeChannel(subscription);

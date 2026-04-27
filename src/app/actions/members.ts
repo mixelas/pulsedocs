@@ -14,11 +14,25 @@ export async function getWorkspaceMembers(workspaceId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('workspace_members')
-    .select('*')
+    .select(`
+      *,
+      user:user_id(id, email)
+    `)
     .eq('workspace_id', workspaceId)
     .order('joined_at', { ascending: true });
 
-  if (error) return [];
+  if (error) {
+    // Fallback for environments where relation to auth.users is not exposed via PostgREST.
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('workspace_members')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('joined_at', { ascending: true });
+
+    if (fallbackError) return [];
+    return (fallbackData as WorkspaceMember[]) || [];
+  }
+
   return data as WorkspaceMember[] || [];
 }
 
@@ -30,23 +44,37 @@ export async function inviteMemberToWorkspace(
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
-  const userRole = await getCurrentUserRole(workspaceId);
-  if (!userRole || !canInviteMembers(userRole)) {
-    throw new Error('Permission denied');
-  }
-
   const supabase = await createClient();
 
-  // Check if user is already a member
-  const { data: existingMember } = await supabase
+  // Resolve role in the same request context used for insert.
+  const { data: membership, error: membershipError } = await supabase
     .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new Error(`Unable to verify permissions: ${membershipError.message}`);
+  }
+
+  if (!membership || !canInviteMembers(membership.role as WorkspaceRole)) {
+    throw new Error('Only workspace owners or admins can send invitations');
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Check if there is already a pending invitation for this email.
+  const { data: existingInvite } = await supabase
+    .from('workspace_invitations')
     .select('id')
     .eq('workspace_id', workspaceId)
-    .match({ user_id: user.id })
-    .single();
+    .eq('email', normalizedEmail)
+    .is('accepted_at', null)
+    .maybeSingle();
 
-  if (existingMember) {
-    throw new Error('User is already a member of this workspace');
+  if (existingInvite) {
+    throw new Error('An invitation for this email is already pending');
   }
 
   const token = crypto.randomBytes(32).toString('hex');
@@ -56,7 +84,7 @@ export async function inviteMemberToWorkspace(
     .from('workspace_invitations')
     .insert({
       workspace_id: workspaceId,
-      email,
+      email: normalizedEmail,
       role,
       invited_by: user.id,
       token,
@@ -68,7 +96,7 @@ export async function inviteMemberToWorkspace(
   if (error) throw error;
 
   await logActivity(workspaceId, 'member_invited', `Invited ${email} as ${role}`, {
-    email,
+    email: normalizedEmail,
     role,
   });
 
@@ -192,4 +220,106 @@ export async function revokeInvitation(invitationId: string, workspaceId: string
     .eq('workspace_id', workspaceId);
 
   if (error) throw error;
+}
+
+export async function getMyPendingInvitations() {
+  const user = await getCurrentUser();
+  if (!user?.email) return [];
+
+  const supabase = await createClient();
+  const normalizedEmail = user.email.toLowerCase();
+
+  const { data, error } = await supabase
+    .from('workspace_invitations')
+    .select(`
+      id,
+      workspace_id,
+      email,
+      role,
+      invited_by,
+      token,
+      accepted_at,
+      expires_at,
+      created_at,
+      workspaces:workspace_id(id, name, slug)
+    `)
+    .eq('email', normalizedEmail)
+    .is('accepted_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) return [];
+  return data || [];
+}
+
+export async function acceptWorkspaceInvitation(invitationId: string) {
+  const user = await getCurrentUser();
+  if (!user?.email) throw new Error('Not authenticated');
+
+  const supabase = await createClient();
+  const normalizedEmail = user.email.toLowerCase();
+
+  const { data: invitation, error: invitationError } = await supabase
+    .from('workspace_invitations')
+    .select('id, workspace_id, role, email, accepted_at, expires_at')
+    .eq('id', invitationId)
+    .eq('email', normalizedEmail)
+    .single();
+
+  if (invitationError || !invitation) {
+    throw new Error('Invitation not found');
+  }
+
+  if (invitation.accepted_at) {
+    throw new Error('Invitation already accepted');
+  }
+
+  if (new Date(invitation.expires_at).getTime() < Date.now()) {
+    throw new Error('Invitation has expired');
+  }
+
+  const { data: existingMember } = await supabase
+    .from('workspace_members')
+    .select('id')
+    .eq('workspace_id', invitation.workspace_id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!existingMember) {
+    const { error: joinError } = await supabase
+      .from('workspace_members')
+      .insert({
+        workspace_id: invitation.workspace_id,
+        user_id: user.id,
+        role: invitation.role,
+      });
+
+    if (joinError) throw joinError;
+  }
+
+  const acceptedAt = new Date().toISOString();
+
+  const { data: acceptedInvitation, error: acceptError } = await supabase
+    .from('workspace_invitations')
+    .update({ accepted_at: acceptedAt })
+    .eq('id', invitation.id)
+    .eq('email', normalizedEmail)
+    .is('accepted_at', null)
+    .select('id, accepted_at')
+    .maybeSingle();
+
+  if (acceptError) throw acceptError;
+
+  if (!acceptedInvitation || !acceptedInvitation.accepted_at) {
+    throw new Error('Invitation could not be finalized. Please refresh and try again.');
+  }
+
+  await logActivity(
+    invitation.workspace_id,
+    'member_joined',
+    `${user.email} accepted workspace invitation`,
+    { invitationId: invitation.id }
+  );
+
+  return { workspaceId: invitation.workspace_id };
 }

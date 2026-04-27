@@ -93,6 +93,20 @@ export default function SignIn() {
               Sign up
             </Link>
           </p>
+
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <Link
+                href="/seed"
+                className="block w-full text-center bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+              >
+                🌱 Create Test Users
+              </Link>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Development only: Generate test accounts for testing
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

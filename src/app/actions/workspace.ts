@@ -390,17 +390,18 @@ export async function searchWorkspace(workspaceId: string, query: string) {
       .select('id, title, content, created_at, updated_at, updated_by')
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
-      .textSearch('search_vector', query),
+      .or(`title.ilike.%${query}%,content.ilike.%${query}%`),
     supabase
       .from('messages')
       .select('id, content, created_at, sender_id, channel_id')
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
-      .textSearch('search_vector', query),
+      .ilike('content', `%${query}%`),
     supabase
       .from('channels')
       .select('id, name, description')
-      .eq('workspace_id', workspaceId),
+      .eq('workspace_id', workspaceId)
+      .or(`name.ilike.%${query}%,description.ilike.%${query}%`),
   ]);
 
   return {

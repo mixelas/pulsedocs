@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { createWorkspace } from '@/app/actions/workspace';
+import { acceptWorkspaceInvitation, getMyPendingInvitations } from '@/app/actions/members';
 import { NotificationBell } from '@/components/NotificationBell';
 import type { Workspace } from '@/types/database';
 
@@ -13,6 +14,8 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [acceptingInvitationId, setAcceptingInvitationId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
@@ -41,6 +44,9 @@ export default function Dashboard() {
         setWorkspaces(workspaceList);
       }
 
+      const invites = await getMyPendingInvitations();
+      setPendingInvitations(invites);
+
       setLoading(false);
     }
 
@@ -68,6 +74,21 @@ export default function Dashboard() {
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push('/');
+  }
+
+  async function handleAcceptInvitation(invitationId: string) {
+    setError('');
+    setAcceptingInvitationId(invitationId);
+
+    try {
+      const result = await acceptWorkspaceInvitation(invitationId);
+      setPendingInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
+      router.push(`/workspace/${result.workspaceId}`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to accept invitation');
+    } finally {
+      setAcceptingInvitationId(null);
+    }
   }
 
   if (loading) {
@@ -101,6 +122,38 @@ export default function Dashboard() {
 
       {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-12">
+        {pendingInvitations.length > 0 && (
+          <div className="bg-card rounded-lg p-6 border border-border mb-8">
+            <h3 className="text-lg font-semibold text-primary mb-2">Pending Invitations</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              You were invited to join these workspaces.
+            </p>
+
+            <div className="space-y-3">
+              {pendingInvitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-4"
+                >
+                  <div>
+                    <p className="font-medium text-foreground">{inv.workspaces?.name || 'Workspace'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Role: {inv.role} - Expires {new Date(inv.expires_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAcceptInvitation(inv.id)}
+                    disabled={acceptingInvitationId === inv.id}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-opacity-90 disabled:opacity-50 transition"
+                  >
+                    {acceptingInvitationId === inv.id ? 'Accepting...' : 'Accept'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-baseline justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-primary mb-2">Workspaces</h2>

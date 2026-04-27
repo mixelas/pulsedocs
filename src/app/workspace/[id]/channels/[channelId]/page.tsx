@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getChannelById, sendMessage } from '@/app/actions/workspace';
 import { useMessagesSubscription } from '@/hooks/useMessagesSubscription';
+import { createClient } from '@/lib/supabase/client';
 import type { Channel } from '@/types/database';
 
 interface Props {
@@ -11,21 +12,42 @@ interface Props {
 
 export default function ChannelView({ params: { id, channelId } }: Props) {
   const [channel, setChannel] = useState<Channel | null>(null);
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
   
   const { messages, loading } = useMessagesSubscription(channelId);
+
+  const getSenderLabel = (senderId: string) => {
+    if (!senderId) return 'Unknown user';
+    return senderNames[senderId] || `User ${senderId.slice(0, 8)}`;
+  };
 
   useEffect(() => {
     async function loadChannel() {
       const chan = await getChannelById(channelId);
       setChannel(chan);
+
+      const { data: members } = await supabase
+        .from('workspace_members')
+        .select('user_id, user:user_id(email)')
+        .eq('workspace_id', id);
+
+      const names: Record<string, string> = {};
+      (members || []).forEach((m: any) => {
+        const email = m?.user?.email as string | undefined;
+        if (m?.user_id && email) {
+          names[m.user_id] = email;
+        }
+      });
+      setSenderNames(names);
     }
 
     loadChannel();
-  }, [channelId]);
+  }, [channelId, id, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,7 +107,7 @@ export default function ChannelView({ params: { id, channelId } }: Props) {
             <div key={msg.id} className="bg-card rounded-lg p-4 border border-border">
               <div className="flex items-baseline justify-between">
                 <p className="font-semibold text-foreground text-sm">
-                  {msg.sender_id}
+                  {getSenderLabel(msg.sender_id)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(msg.created_at).toLocaleTimeString()}

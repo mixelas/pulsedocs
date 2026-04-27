@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { DocumentComment } from '@/types/database';
 
@@ -12,7 +12,7 @@ export function useDocumentCommentsSubscription(documentId: string) {
   const [comments, setComments] = useState<DocumentComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchComments = useCallback(async () => {
     const { data, error: fetchError } = await supabase
@@ -48,7 +48,9 @@ export function useDocumentCommentsSubscription(documentId: string) {
           if (payload.eventType === 'INSERT') {
             const newComment = payload.new as DocumentComment;
             if (newComment.deleted_at === null) {
-              setComments((prev) => [...prev, newComment]);
+              setComments((prev) =>
+                prev.some((c) => c.id === newComment.id) ? prev : [...prev, newComment]
+              );
             }
           } else if (payload.eventType === 'UPDATE') {
             const updatedComment = payload.new as DocumentComment;
@@ -65,7 +67,11 @@ export function useDocumentCommentsSubscription(documentId: string) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          fetchComments();
+        }
+      });
 
     return () => {
       supabase.removeChannel(subscription);

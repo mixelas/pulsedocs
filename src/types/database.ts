@@ -6,6 +6,7 @@ export type NotificationType =
   | 'message_reply'
   | 'document_comment'
   | 'document_mention'
+  | 'direct_message'
   | 'system';
 
 export interface Workspace {
@@ -96,16 +97,6 @@ export interface Notification {
   created_at: string;
 }
 
-export interface ActivityLog {
-  id: string;
-  workspace_id: string;
-  actor_id: string | null;
-  activity_type: string;
-  description: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-}
-
 export interface WorkspaceInvitation {
   id: string;
   workspace_id: string;
@@ -117,3 +108,86 @@ export interface WorkspaceInvitation {
   expires_at: string;
   created_at: string;
 }
+
+export interface DirectMessageConversation {
+  id: string;
+  participant_1_id: string;
+  participant_2_id: string;
+  workspace_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export type UserPresenceStatus = 'online' | 'away' | 'offline';
+
+export interface UserPresence {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  status: UserPresenceStatus;
+  last_seen_at: string;
+  updated_at: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  workspace_id: string;
+  actor_id: string;
+  activity_type: string;
+  description: string;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+export interface DocumentVersion {
+  id: string;
+  document_id: string;
+  version_number: number;
+  title: string;
+  content: string;
+  created_by: string;
+  created_at: string;
+  change_summary: string | null;
+}
+
+export interface DocumentEdit {
+  id: string;
+  document_id: string;
+  edited_by: string;
+  edit_type: 'title_changed' | 'content_added' | 'content_removed' | 'content_replaced';
+  previous_value: string | null;
+  new_value: string | null;
+  created_at: string;
+}
+
+export interface ActiveEditor {
+  id: string;
+  document_id: string;
+  user_id: string;
+  last_seen_at: string;
+  cursor_position: number;
+}
+
+export interface DocumentCommentThread {
+  id: string;
+  workspace_id: string;
+  document_id: string;
+  author_id: string;
+  content: string;
+  line_number: number | null;
+  resolved: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+

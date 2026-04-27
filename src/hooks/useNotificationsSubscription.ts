@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Notification } from '@/types/database';
 
@@ -6,7 +6,7 @@ export function useNotificationsSubscription() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchNotifications = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -31,14 +31,16 @@ export function useNotificationsSubscription() {
   }, [supabase]);
 
   useEffect(() => {
-    fetchNotifications();
+    let isMounted = true;
+    let subscription: any = null;
 
-    (async () => {
+    const setup = async () => {
+      await fetchNotifications();
+
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !isMounted) return;
 
-      if (!user) return;
-
-      const subscription = supabase
+      subscription = supabase
         .channel(`notifications:${user.id}`)
         .on(
           'postgres_changes',
@@ -51,7 +53,11 @@ export function useNotificationsSubscription() {
           (payload) => {
             if (payload.eventType === 'INSERT') {
               const newNotification = payload.new as Notification;
-              setNotifications((prev) => [newNotification, ...prev]);
+              setNotifications((prev) =>
+                prev.some((n) => n.id === newNotification.id)
+                  ? prev
+                  : [newNotification, ...prev]
+              );
             } else if (payload.eventType === 'UPDATE') {
               const updatedNotification = payload.new as Notification;
               setNotifications((prev) =>
@@ -67,12 +73,21 @@ export function useNotificationsSubscription() {
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            fetchNotifications();
+          }
+        });
+    };
 
-      return () => {
+    setup();
+
+    return () => {
+      isMounted = false;
+      if (subscription) {
         supabase.removeChannel(subscription);
-      };
-    })();
+      }
+    };
   }, [fetchNotifications, supabase]);
 
   return { notifications, loading, error };
