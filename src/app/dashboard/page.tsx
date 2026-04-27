@@ -223,7 +223,7 @@ export default function Dashboard() {
         {workspaces.length === 0 ? (
           <div className="bg-card rounded-lg p-12 border border-border text-center">
             <p className="text-muted-foreground mb-4">
-              You haven't created any workspaces yet
+              You have not created any workspaces yet
             </p>
             <button
               onClick={() => setShowCreate(true)}

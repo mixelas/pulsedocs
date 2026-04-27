@@ -56,7 +56,7 @@ export default function Home() {
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Combine lightweight communication with structured documentation. No more
-            switching between tools. One workspace for your team's entire knowledge.
+            switching between tools. One workspace for your team&apos;s entire knowledge.
           </p>
           <Link
             href="/auth/signup"

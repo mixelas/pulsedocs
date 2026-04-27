@@ -147,7 +147,7 @@ export default function Search({ params: { id } }: Props) {
             results.messages.length === 0 &&
             results.channels.length === 0 && (
               <div className="text-center text-muted-foreground py-12">
-                <p>No results found for "{query}"</p>
+                <p>No results found for &quot;{query}&quot;</p>
               </div>
             )}
         </div>
