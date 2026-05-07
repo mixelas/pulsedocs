@@ -2,6 +2,9 @@
 
 A modern SaaS platform combining Slack-style channels with Notion-style documentation. PulseDocs helps teams unify communication and knowledge management in a single workspace, eliminating context switching between tools.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen?logo=vercel)](https://pulsedocs.vercel.app/)
+
+
 ## Features
 
 ### Core Features (Phase 3)
