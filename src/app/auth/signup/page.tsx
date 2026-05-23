@@ -22,7 +22,7 @@ export default function SignUp() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/auth/callback`,
       },
     });
 
@@ -30,7 +30,7 @@ export default function SignUp() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/auth/confirm');
+      router.push('/dashboard');
       router.refresh();
     }
   }
