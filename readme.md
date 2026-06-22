@@ -4,7 +4,6 @@ A modern SaaS platform combining Slack-style channels with Notion-style document
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-brightgreen?logo=vercel)](https://pulsedocs.vercel.app/)
 
-
 ## Features
 
 ### Core Features (Phase 3)
@@ -59,13 +58,12 @@ A modern SaaS platform combining Slack-style channels with Notion-style document
    ```
 
 4. **Set up database schema:**
-   
+
    Open your Supabase SQL Editor and run migrations in order:
    - `supabase/migrations/001_initial_schema.sql` - Creates 10 core tables
    - `supabase/migrations/002_functions_and_rls.sql` - Adds RLS policies and helper functions
    - (Optional) `supabase/seed/001_dev_seed.sql` - Loads dev sample data
 
-   ⚠️ **Important**: Keep "Enable Automatic RLS" disabled. PulseDocs uses explicit RLS policies.
 
 5. **Run dev server:**
    ```bash
@@ -118,6 +116,23 @@ supabase/
 public/                     # Static assets
 ```
 
+## Database Schema
+
+Key entities in Supabase PostgreSQL:
+
+- `users` - User accounts (managed by Supabase Auth)
+- `workspaces` - Team/organization workspaces
+- `workspace_members` - Membership with role-based access
+- `channels` - Team communication channels
+- `messages` - Channel messages
+- `documents` - Knowledge base documents
+- `folders` - Document organization
+- `document_comments` - Comments on documents
+- `notifications` - User notifications
+- `activity_logs` - Workspace activity history
+
+Row-Level Security (RLS) policies ensure users only access data from workspaces they're members of.
+
 ## Architecture Decisions
 
 ### Server Actions
@@ -150,6 +165,9 @@ Full-text search uses PostgreSQL:
 ## Development
 
 ```bash
+# Start dev server
+npm run dev
+
 # Type check
 npm run type-check
 
@@ -162,13 +180,13 @@ npm start
 
 ## Roadmap
 
-- **Phase 5**: Direct messaging and video calls
-- **Phase 6**: Collaborative editing and version history
-- **Phase 7**: Integrations (Slack, Zapier, GitHub)
-- **Phase 8**: Advanced analytics and insights
-- **Phase 9**: Mobile apps (React Native)
-- **Phase 10**: Enterprise features (SSO, audit logs export)
-- **Phase 11**: AI-powered search and summarization
+- **Phase 1**: Direct messaging and video calls
+- **Phase 2**: Collaborative editing, version history, and file attachments
+- **Phase 3**: Integrations (Slack, Zapier, GitHub)
+- **Phase 4**: Advanced analytics and insights
+- **Phase 5**: Mobile apps (React Native)
+- **Phase 6**: Enterprise features (SSO, audit logs export)
+- **Phase 7**: AI-powered search and summarization
 
 ## Contributing
 
@@ -176,91 +194,4 @@ This is an actively developed project. Contributions welcome—open issues for b
 
 ## License
 
-MIT
-8. Workspace Dashboard
-9. Notifications & Comments
-10. Polish & Responsive Design
-11. Testing & Deployment
-
-## Development Workflow
-
-```bash
-# Start dev server
-npm run dev
-
-# Type checking
-npm run type-check
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-## Database Schema Overview
-
-Key entities in Supabase PostgreSQL:
-
-- `users` - User accounts (managed by Supabase Auth)
-- `workspaces` - Team/organization workspaces
-- `workspace_members` - Membership with role-based access
-- `channels` - Team communication channels
-- `messages` - Channel messages
-- `documents` - Knowledge base documents
-- `folders` - Document organization
-- `document_comments` - Comments on documents
-- `notifications` - User notifications
-- `activity_logs` - Workspace activity history
-
-Row-Level Security (RLS) policies ensure users only access data from workspaces they're members of.
-
-## Deployment
-
-The app is built for deployment on Vercel:
-
-1. Push your code to GitHub
-2. Connect the repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Vercel auto-deploys on push to main branch
-
-[Learn more about Vercel deployment](https://vercel.com/docs/frameworks/nextjs)
-
-## Roadmap
-
-### MVP (Phase 1-11)
-- Authentication and workspaces
-- Channels with messaging
-- Document management
-- Basic search
-- Notifications
-- Dashboard overview
-
-### Future Features
-- Real-time collaborative editing
-- Video/audio calls
-- File attachments and uploads
-- Advanced document versioning
-- Team analytics
-- Integrations (Slack, GitHub, etc.)
-- Mobile native apps
-
-## Contributing
-
-This is a portfolio project, but contributions and suggestions are welcome!
-
-## License
-
 MIT License - feel free to use this project as a reference or foundation for your own work.
-
-## Support
-
-For issues or questions:
-- Check the implementation plan in `/memories/session/plan.md`
-- Review Supabase documentation at [supabase.com/docs](https://supabase.com/docs)
-- Check Next.js documentation at [nextjs.org/docs](https://nextjs.org/docs)
-
----
-
-**Author:** Built as a modern team collaboration SaaS MVP  
-**Last Updated:** March 25, 2026
