@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import React, { type ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
